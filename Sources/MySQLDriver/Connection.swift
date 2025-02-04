@@ -80,8 +80,10 @@ public extension MySQL.Connection {
             var pos = 0
             msh.proto_version = data[pos]
             pos += 1
-            msh.server_version = data[pos..<data.count].string()
-            pos += (msh.server_version?.utf8.count)! + 1
+            let version_end_index = data[pos...].firstIndex(of: 0)! + 1
+            msh.server_version = data[pos..<version_end_index].string()
+            print(msh.server_version)
+            pos += version_end_index // (msh.server_version?.utf8.count)! + 1
             msh.conn_id = data[pos...pos+4].uInt32()
             pos += 4
             msh.scramble = Array(data[pos..<pos+8])
