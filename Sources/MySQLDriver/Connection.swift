@@ -80,21 +80,20 @@ public extension MySQL.Connection {
             var pos = 0
             msh.proto_version = data[pos]
             pos += 1
-            let version_end_index = data[pos...].firstIndex(of: 0)! + 1
-            msh.server_version = data[pos..<version_end_index].string()
-            print(msh.server_version)
-            pos += version_end_index // (msh.server_version?.utf8.count)! + 1
-            msh.conn_id = data[pos...pos+4].uInt32()
+            let version_len = data[pos...].firstIndex(of: 0)! - pos
+            msh.server_version = data[pos...pos+version_len].string()
+            pos += version_len + 1// add null string end char
+            msh.conn_id = data[pos..<pos+4].uInt32()
             pos += 4
             msh.scramble = Array(data[pos..<pos+8])
             pos += 8 + 1
-            msh.cap_flags = data[pos...pos+2].uInt16()
+            msh.cap_flags = data[pos..<pos+2].uInt16()
             pos += 2
             msh.server_lang = data[pos];
             pos += 1;
-            msh.server_status = data[pos...pos+2].uInt16()
+            msh.server_status = data[pos..<pos+2].uInt16()
             pos += 2
-            msh.ext_cap_flags = data[pos...pos+2].uInt16()
+            msh.ext_cap_flags = data[pos..<pos+2].uInt16()
             pos += 2
             let auth_len = Int(data[pos]);
             pos += 1;
@@ -137,7 +136,7 @@ public extension MySQL.Connection {
         }
         if self.mysql_authSwitch?.auth_name == "caching_sha2_password" {
                         
-            var token = MySQL.Utils.calculateToken(self.passwd!, scramble: self.mysql_Handshake!.scramble!);
+            let token = MySQL.Utils.calculateToken(self.passwd!, scramble: self.mysql_Handshake!.scramble!);
             
             try socket?.writePacket(token)
             
@@ -149,10 +148,10 @@ public extension MySQL.Connection {
         }
 
     }
-
+    
     private func readAuthSwitch() throws -> MySQL.mysql_auth_switch {
         var msh = MySQL.mysql_auth_switch()
-
+        
         if let data = try socket?.readPacket() {
             var pos = 0;
             msh.status = data[pos]
@@ -166,7 +165,6 @@ public extension MySQL.Connection {
         }
         return msh;
     }
-    
 
     private func readAuthResponse() throws {
         if let data = try socket?.readPacket() {
@@ -181,7 +179,7 @@ public extension MySQL.Connection {
     }
 
     private func requestServerKey() throws {
-        var arr:[UInt8] = [2];
+        let arr:[UInt8] = [2];
         try socket?.writePacket(arr);
 
         try readServerKey();
@@ -194,7 +192,7 @@ public extension MySQL.Connection {
 
             let serverPublicKey = Array(data[1..<data.count]);
 
-            var epwd = MySQL.Utils.encPasswd(self.passwd!, scramble: self.mysql_Handshake!.scramble!, key:serverPublicKey);
+            let epwd = MySQL.Utils.encPasswd(self.passwd!, scramble: self.mysql_Handshake!.scramble!, key:serverPublicKey);
              
             try socket?.writePacket(epwd)
             
@@ -263,7 +261,7 @@ public extension MySQL.Connection {
         }
         arr.append(0)
         
-        arr.append(contentsOf:"mysql_native_password".utf8)
+        arr.append(contentsOf: mysql_Handshake!.auth_plugin!.utf8)
         arr.append(0)
         
         try socket?.writePacket(arr)
@@ -275,10 +273,7 @@ public extension MySQL.Connection {
             self.mysql_authSwitch = try self.readAuthSwitch()
             try self.sendAuthSwitchResponse();
         }
-
-
     }
-    
     
     func readColumns(_ count:Int) throws ->[Field]? {
         

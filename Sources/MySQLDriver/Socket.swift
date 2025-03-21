@@ -139,16 +139,25 @@ open class Socket {
         return String(cString:UnsafePointer(strerror(errno))) //?? "Error: \(errno)"
     }
     
-    func readNUInt8(_ n:UInt32) throws -> [UInt8] {
+    func readNUInt8(_ n: UInt32) throws -> [UInt8] {
         var buffer = [UInt8](repeating: 0, count: Int(n))
         var read = 0
         
         while read < Int(n) {
-            read += recv(s, &buffer[read], Int(n) - read, 0)
+            let result = recv(s, &buffer[read], Int(n) - read, 0)
             
-            if read <= 0 {
+            if result < 0 {
                 throw SocketError.recvFailed(Socket.descriptionOfLastError())
+            } else if result == 0 {
+                // Connection closed by peer, handle gracefully
+                if read == 0 {
+                    throw SocketError.recvFailed("Connection closed by peer with no data read")
+                } else {
+                    break // Exit the loop if some data has been read
+                }
             }
+            
+            read += result
         }
         
         if bytesToRead >= UInt32(n) {
