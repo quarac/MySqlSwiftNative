@@ -34,7 +34,6 @@ extension Socket {
 open class Socket {
  
     let s : Int32
-    var bytesToRead : UInt32
     var packnr : Int
     var socketInUse = false
     var addr : sockaddr_in?
@@ -44,7 +43,6 @@ open class Socket {
     
     init(host : String, port : Int) throws {
         // create socket to MySQL Server
-        bytesToRead = 0
         packnr = 0
         #if os(Linux)
             s = socket(AF_INET, Int32(SOCK_STREAM.rawValue), 0)
@@ -160,33 +158,25 @@ open class Socket {
             read += result
         }
         
-        if bytesToRead >= UInt32(n) {
-            bytesToRead -= UInt32(n)
-        }
-        
         return buffer
     }
     
     
     func readHeader() throws -> (UInt32, Int) {
         let b = try readNUInt8(3).uInt24()
-        
         let pn = try readNUInt8(1)[0]
-        bytesToRead = b
-        
         return (b, Int(pn))
     }
     
     func readPacket() throws -> [UInt8] {
         let (len, pknr) = try readHeader()
-        bytesToRead = len
         self.packnr = pknr
         return try readNUInt8(len)
     }
     
     func writePacket(_ data:[UInt8]) throws {
         try writeHeader(UInt32(data.count), pn: UInt8(self.packnr + 1))
-        try  writeBuffer(data)
+        try writeBuffer(data)
     }
     
     func writeBuffer(_ buffer:[UInt8]) throws  {
@@ -201,7 +191,6 @@ open class Socket {
                 #endif
                 if s <= 0 {
                     throw SocketError.writeFailed(Socket.descriptionOfLastError())
-                    
                 }
                 sent += s
             }
@@ -222,22 +211,4 @@ open class Socket {
             return isLittleEndian ? _OSSwapInt16(port) : port
         #endif
     }
-    
-    /*
-    func lockSocket() {
-    while socketInUse {
-    
-    }
-    socketInUse = true
-    }
-    
-    func unlockSocket() {
-    socketInUse = false
-    }
-    
-    func socketLocked() -> Bool {
-    return socketInUse
-    }
-    */
-
 }

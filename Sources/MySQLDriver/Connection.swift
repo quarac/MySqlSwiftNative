@@ -265,7 +265,7 @@ public extension MySQL.Connection {
         arr.append(0)
         
         try socket?.writePacket(arr)
-        
+
         if mysql_Handshake?.auth_plugin == "mysql_native_password" {
             // don't do auth switch
         }

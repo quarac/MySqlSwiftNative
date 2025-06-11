@@ -768,12 +768,25 @@ extension Sequence where Iterator.Element == UInt8 {
         let arr = self.map { (elem) -> UInt8 in
             return elem
         }
-
-        guard (arr.count > 0) && (arr[arr.count-1] == 0) else {
-            return ""
+        
+        // Verificar que el array no esté vacío
+        guard !arr.isEmpty else {
+            return nil
         }
         
-        return String(cString: UnsafePointer<UInt8>(arr))
+        // Verificar que termine en null terminator
+        guard arr.last == 0 else {
+            // Si no termina en null, convertir directamente
+            return String(bytes: self, encoding: .utf8)
+        }
+        
+        // Crear string de forma segura
+        return arr.withUnsafeBufferPointer { bufferPointer in
+            guard let baseAddress = bufferPointer.baseAddress else {
+                return nil
+            }
+            return String(cString: baseAddress)
+        }
     }
     
     static func UInt24Array(_ val: UInt32) -> [UInt8]{
